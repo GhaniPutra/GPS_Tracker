@@ -70,15 +70,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   items: const [
                     DropdownMenuItem(
                       value: ThemeMode.system,
-                      child: Text('Sistem'),
+                      child: Text('System'),
                     ),
                     DropdownMenuItem(
                       value: ThemeMode.light,
-                      child: Text('Terang'),
+                      child: Text('Light'),
                     ),
                     DropdownMenuItem(
                       value: ThemeMode.dark,
-                      child: Text('Gelap'),
+                      child: Text('Dark'),
                     ),
                   ],
                 ),

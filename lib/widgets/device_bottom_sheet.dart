@@ -50,7 +50,7 @@ class DeviceBottomSheet extends StatelessWidget {
                       color: theme.cardColor,
                       child: ListTile(
                         leading: const Icon(Icons.gps_fixed, size: 30), // Ganti ikon
-                        title: Text('Perangkat ${index + 1} (Misal: Mobil)'),
+                        title: Text('Perangkat ${index + 1} (Misal: Tablet)'),
                         subtitle: const Text('Online - 10 menit lalu'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {

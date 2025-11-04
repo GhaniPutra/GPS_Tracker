@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Aplikasi ini memerlukan Bluetooth untuk mencari dan terhubung ke perangkat GPS di sekitar.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aplikasi ini memerlukan lokasi Anda untuk menampilkan posisi di peta dan mencari perangkat di sekitar.</string>
 </dict>
 </plist>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gps_tracker_app/screens/bluetooth_scan_screen.dart';
 
 class DeviceBottomSheet extends StatelessWidget {
   const DeviceBottomSheet({super.key});
@@ -37,6 +38,65 @@ class DeviceBottomSheet extends StatelessWidget {
               Text(
                 'Perangkat Terhubung',
                 style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              // Tombol Tambah Perangkat
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  label: const Text('Tambah Perangkat'),
+                  onPressed: () {
+                    // Menampilkan bottom sheet pilihan
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (ctx) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pilih Metode Koneksi',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 16),
+                              ListTile(
+                                leading: const Icon(Icons.bluetooth),
+                                title: const Text('Tambah via Bluetooth'),
+                                onTap: () {
+                                  Navigator.pop(ctx); // Tutup bottom sheet
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const BluetoothScanScreen()),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(Icons.wifi),
+                                title: const Text('Tambah via Wi-Fi'),
+                                onTap: () {
+                                  // ignore: avoid_print
+                                  print('Navigasi ke halaman pencarian Wi-Fi...');
+                                  Navigator.pop(ctx);
+                                  // Di sini nanti kita akan navigasi ke halaman pencarian Wi-Fi
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.onSurface,
+                    side: BorderSide(color: theme.dividerColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               // Daftar Device (Fitur 1)

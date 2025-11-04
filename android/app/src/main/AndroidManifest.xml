@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
+    <!-- Izin untuk Bluetooth -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <!-- Izin ini penting untuk pelacakan di latar belakang (Background) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <!-- Izin untuk Android 10+ agar aplikasi dapat mengakses lokasi di latar belakang -->

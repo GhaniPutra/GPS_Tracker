@@ -122,10 +122,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Cek apakah platform saat ini adalah Linux
-    final bool isLinux = defaultTargetPlatform == TargetPlatform.linux;
+    final bool isDesktop = defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows;
 
-    if (isLinux) {
-      // Jika di Linux, tampilkan pesan placeholder namun tetap fungsional
+    if (isDesktop) {
+      // Jika di Desktop (Linux/Windows), tampilkan pesan placeholder namun tetap fungsional
       return Scaffold(
         body: Center(
           child: Column(
@@ -134,8 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const Spacer(),
               const Icon(Icons.map_outlined, size: 80, color: Colors.grey),
               const SizedBox(height: 20),
-              const Text(
-                'Peta tidak didukung di Linux',
+              Text(
+                'Peta tidak didukung di ${defaultTargetPlatform.name}',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),

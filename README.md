@@ -141,11 +141,3 @@ Untuk halaman kosong seperti “Belum ada perangkat yang ditambahkan”.
 Tester dapat mengunduh APK langsung dari GitHub Releases. Klik nama aplikasi di bawah untuk mengunduh APK terbaru:
 
 - [GPS Tracker (Android APK)](https://github.com/GhaniPutra/GPS_Tracker/releases/latest/download/GPS_Tracker.apk)
-
-Catatan singkat:
-- Jika link tersebut mengembalikan 404, berarti belum ada Release dengan asset bernama `GPS_Tracker.apk` di repo. Untuk memperbaikinya, Anda bisa:
-	1. Push perubahan ke `main` untuk memicu workflow CI (jika Anda ingin workflow membuat Release otomatis), atau
-	2. Upload APK secara manual melalui GitHub → Releases → New release, lalu beri nama asset `GPS_Tracker.apk`.
-
-Pastikan repository ter-push ke `GhaniPutra/GPS_Tracker` agar tautan tersebut berfungsi.
-

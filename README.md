@@ -133,3 +133,20 @@ Untuk halaman kosong seperti “Belum ada perangkat yang ditambahkan”.
 
 ## 👨‍💻 Kontributor
 - Akmal Ghani – Pengembang Flutter & UI/UX
+
+---
+
+## 📥 Unduh APK (build otomatis)
+
+Tester dapat langsung mengunduh APK hasil build dari GitHub Releases tanpa perlu mengunduh seluruh kode sumber.
+
+- Link langsung ke APK (Download latest):
+
+	https://github.com/GhaniPutra/GPS_Tracker/releases/latest/download/GPS_Tracker.apk
+
+Klik link di atas untuk mengunduh file APK yang diunggah oleh workflow GitHub Actions (jika sudah ada build/Release terbaru).
+
+Catatan:
+- Workflow akan berjalan otomatis saat ada push ke cabang `main` dan juga dapat dijalankan manual melalui tab "Actions" → jalankan workflow secara manual.
+- Pastikan repositori ini sudah dipush ke akun GitHub `GhaniPutra/GPS_Tracker` agar link release berfungsi. Workflow membuat sebuah Release dan mengunggah aset bernama `GPS_Tracker.apk`.
+

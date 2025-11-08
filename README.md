@@ -136,17 +136,16 @@ Untuk halaman kosong seperti “Belum ada perangkat yang ditambahkan”.
 
 ---
 
-## 📥 Unduh APK (build otomatis)
+## 📥 Get the app
 
-Tester dapat langsung mengunduh APK hasil build dari GitHub Releases tanpa perlu mengunduh seluruh kode sumber.
+Tester dapat mengunduh APK langsung dari GitHub Releases. Klik nama aplikasi di bawah untuk mengunduh APK terbaru:
 
-- Link langsung ke APK (Download latest):
+- [GPS Tracker (Android APK)](https://github.com/GhaniPutra/GPS_Tracker/releases/latest/download/GPS_Tracker.apk)
 
-	https://github.com/GhaniPutra/GPS_Tracker/releases/latest/download/GPS_Tracker.apk
+Catatan singkat:
+- Jika link tersebut mengembalikan 404, berarti belum ada Release dengan asset bernama `GPS_Tracker.apk` di repo. Untuk memperbaikinya, Anda bisa:
+	1. Push perubahan ke `main` untuk memicu workflow CI (jika Anda ingin workflow membuat Release otomatis), atau
+	2. Upload APK secara manual melalui GitHub → Releases → New release, lalu beri nama asset `GPS_Tracker.apk`.
 
-Klik link di atas untuk mengunduh file APK yang diunggah oleh workflow GitHub Actions (jika sudah ada build/Release terbaru).
-
-Catatan:
-- Workflow akan berjalan otomatis saat ada push ke cabang `main` dan juga dapat dijalankan manual melalui tab "Actions" → jalankan workflow secara manual.
-- Pastikan repositori ini sudah dipush ke akun GitHub `GhaniPutra/GPS_Tracker` agar link release berfungsi. Workflow membuat sebuah Release dan mengunggah aset bernama `GPS_Tracker.apk`.
+Pastikan repository ter-push ke `GhaniPutra/GPS_Tracker` agar tautan tersebut berfungsi.
 

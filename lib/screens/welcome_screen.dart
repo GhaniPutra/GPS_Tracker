@@ -24,7 +24,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (!serviceEnabled) {
       // Location services are not enabled don't continue
       // accessing the position and request users to enable the location services.
-      print('Location services are disabled.');
       return Future.error('Location services are disabled.');
     }
 
@@ -37,21 +36,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         // Android's shouldShowRequestPermissionRationale
         // returned true. According to Android guidelines
         // your App should show an explanatory UI now.
-        print('Location permissions are denied');
         return Future.error('Location permissions are denied');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
       // Permissions are denied forever, handle appropriately.
-      print('Location permissions are permanently denied, we cannot request permissions.');
       return Future.error(
           'Location permissions are permanently denied, we cannot request permissions.');
     }
 
     // When we reach here, permissions are granted and we can
     // continue accessing the position of the device.
-    print('Location permissions are granted.');
   }
 
   @override
@@ -73,7 +69,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 'WELCOME TO',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.textTheme.titleMedium?.color?.withOpacity(0.7),
+                  color: theme.textTheme.titleMedium?.color?.withAlpha(179),
                 ),
               ),
               Text(
@@ -96,7 +92,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 '“Pantau perjalananmu setiap hari bersama kami.”',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.textTheme.bodyLarge?.color?.withOpacity(0.8),
+                  color: theme.textTheme.bodyLarge?.color?.withAlpha(204),
                 ),
               ),
               const Spacer(),

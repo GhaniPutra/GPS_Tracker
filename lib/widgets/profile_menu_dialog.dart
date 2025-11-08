@@ -86,7 +86,7 @@ class ProfileMenuDialog extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: theme.iconTheme.color?.withOpacity(0.7)),
+            Icon(icon, size: 20, color: theme.iconTheme.color?.withAlpha((255 * 0.7).round())),
             const SizedBox(width: 16),
             Text(text, style: theme.textTheme.bodyLarge),
           ],

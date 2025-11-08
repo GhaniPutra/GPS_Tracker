@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart'; // Import flutter_map
+import 'package:latlong2/latlong.dart'; // Import latlong2 for LatLng
 import 'package:geolocator/geolocator.dart';
 import 'dart:async'; // Tambahkan ini
 
@@ -8,6 +8,7 @@ import 'dart:async'; // Tambahkan ini
 import '../widgets/device_bottom_sheet.dart';
 import '../widgets/group_bottom_sheet.dart';
 import '../widgets/profile_menu_dialog.dart';
+import '../widgets/map_type_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,23 +18,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  GoogleMapController? _mapController;
+  late final MapController _mapController; // Initialize MapController directly
   LatLng? _currentPosition; // Variabel untuk menyimpan posisi saat ini
   StreamSubscription<Position>? _positionStreamSubscription; // Tambahkan ini
-  static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(-7.7956, 110.3695), // Koordinat Yogyakarta (placeholder)
-    zoom: 14.0,
-  );
+  static final LatLng _initialPosition = const LatLng(-7.7956, 110.3695); // Koordinat Yogyakarta (placeholder)
+  static const double _initialZoom = 14.0;
+
+  // State untuk tipe dan detail peta
+  String _currentMapType = 'Default';
+
+  bool _is3DEnabled = false;
 
   @override
   void initState() {
     super.initState();
+    _mapController = MapController();
     _determinePosition();
   }
 
   @override
   void dispose() {
     _positionStreamSubscription?.cancel(); // Batalkan langganan saat widget dibuang
+    _mapController.dispose(); // Dispose the map controller
     super.dispose();
   }
 
@@ -44,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
     // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      print('Location services are disabled.');
       return Future.error('Location services are disabled.');
     }
 
@@ -52,13 +57,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        print('Location permissions are denied');
         return Future.error('Location permissions are denied');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      print('Location permissions are permanently denied, we cannot request permissions.');
       return Future.error(
           'Location permissions are permanently denied, we cannot request permissions.');
     }
@@ -74,16 +77,12 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentPosition = LatLng(position.latitude, position.longitude);
       });
       // Animate camera to current position if map controller is available
-      _mapController?.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(
-            target: _currentPosition!,
-            zoom: 16.0,
-          ),
-        ),
+      _mapController.move(
+        _currentPosition!,
+        16.0,
       );
     }, onError: (error) {
-      print("Error in position stream: $error");
+      // Re-throwing the error or handling it in a way that is visible to the user is better than just printing it.
     });
   }
 
@@ -113,79 +112,102 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       barrierColor: theme.brightness == Brightness.dark
-          ? Colors.white.withOpacity(0.1)
-          : Colors.black.withOpacity(0.1),
+          ? Colors.white.withAlpha(26)
+          : Colors.black.withAlpha(26),
       builder: (context) => const ProfileMenuDialog(),
     );
   }
 
+  // Fungsi untuk menampilkan bottom sheet tipe peta
+  void _showMapTypeSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => MapTypeBottomSheet(
+        currentMapType: _currentMapType,
+        is3DEnabled: _is3DEnabled,
+        onMapTypeChanged: (type) {
+          setState(() {
+            _currentMapType = type;
+          });
+          Navigator.pop(context); // Tutup bottom sheet setelah memilih
+        },
+        on3DChanged: (isEnabled) {
+          setState(() {
+            _is3DEnabled = isEnabled;
+            // Catatan: flutter_map tidak mendukung 3D secara default.
+            // Toggle ini hanya untuk UI dan state management.
+          });
+        },
+      ),
+    );
+  }
+
+  String _getTileLayerUrl() {
+    switch (_currentMapType) {
+      case 'Satelit':
+        // ArcGIS World Imagery
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      case 'Medan':
+        // OpenTopoMap
+        return 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+      case 'Default':
+      default:
+        return 'https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}';
+    }
+  }
+
+  List<String> _getTileLayerSubdomains() {
+    switch (_currentMapType) {
+      case 'Satelit':
+        return [];
+      case 'Medan':
+        return ['a', 'b', 'c'];
+      case 'Default':
+      default:
+        return ['mt0', 'mt1', 'mt2', 'mt3'];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Cek apakah platform saat ini adalah Linux
-    final bool isDesktop = defaultTargetPlatform == TargetPlatform.linux ||
-        defaultTargetPlatform == TargetPlatform.windows;
-
-    if (isDesktop) {
-      // Jika di Desktop (Linux/Windows), tampilkan pesan placeholder namun tetap fungsional
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Spacer(),
-              const Icon(Icons.map_outlined, size: 80, color: Colors.grey),
-              const SizedBox(height: 20),
-              Text(
-                'Peta tidak didukung di ${defaultTargetPlatform.name}',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Fungsionalitas lain tetap tersedia di bawah.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 30.0, left: 20, right: 20),
-                child: _buildCustomBottomNav(), // Tampilkan navigasi bawah
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Jika bukan di Linux, tampilkan UI peta seperti biasa
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Google Map (Widget utama)
-          GoogleMap(
-            initialCameraPosition: _initialPosition,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              if (_currentPosition != null) {
-                _mapController?.animateCamera(
-                  CameraUpdate.newCameraPosition(
-                    CameraPosition(
-                      target: _currentPosition!,
-                      zoom: 16.0,
-                    ),
-                  ),
-                );
-              }
-            },
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            markers: _currentPosition == null
-                ? {}
-                : {
+          // 1. Flutter Map (Widget utama)
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _initialPosition,
+              initialZoom: _initialZoom,
+              onMapReady: () {
+                if (_currentPosition != null) {
+                  _mapController.move(_currentPosition!, 16.0);
+                }
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: _getTileLayerUrl(),
+                subdomains: _getTileLayerSubdomains(),
+              ),
+
+              if (_currentPosition != null)
+                MarkerLayer(
+                  markers: [
                     Marker(
-                      markerId: const MarkerId('currentLocation'),
-                      position: _currentPosition!,
-                      infoWindow: const InfoWindow(title: 'Lokasi Saya'),
+                      point: _currentPosition!,
+                      width: 80,
+                      height: 80,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.red,
+                        size: 40.0,
+                      ),
                     ),
-                  },
+                  ],
+                ),
+            ],
           ),
 
           // 2. Tombol Kontrol Peta (Kanan Atas)
@@ -197,16 +219,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildMapControlButton(
                       icon: Icons.add, onPressed: () {
-                    _mapController?.animateCamera(CameraUpdate.zoomIn());
+                    _mapController.move(
+                      _mapController.camera.center,
+                      _mapController.camera.zoom + 1,
+                    );
                   }),
                   const SizedBox(height: 8),
                   _buildMapControlButton(
                       icon: Icons.remove, onPressed: () {
-                    _mapController?.animateCamera(CameraUpdate.zoomOut());
+                    _mapController.move(
+                      _mapController.camera.center,
+                      _mapController.camera.zoom - 1,
+                    );
                   }),
                   const SizedBox(height: 8),
                   _buildMapControlButton(
-                      icon: Icons.navigation_outlined, onPressed: () {}),
+                      icon: Icons.layers, onPressed: _showMapTypeSheet),
                 ],
               ),
             ),
@@ -220,13 +248,9 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icons.my_location,
               onPressed: () {
                 if (_currentPosition != null) {
-                  _mapController?.animateCamera(
-                    CameraUpdate.newCameraPosition(
-                      CameraPosition(
-                        target: _currentPosition!,
-                        zoom: 16.0,
-                      ),
-                    ),
+                  _mapController.move(
+                    _currentPosition!,
+                    16.0,
                   );
                 } else {
                   // Optionally, re-request location if not available
@@ -260,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(35),
         boxShadow: [
           BoxShadow(
-            color: isDarkMode ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.3),
+            color: isDarkMode ? Colors.black.withAlpha(128) : Colors.grey.withAlpha(77),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -271,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // Tombol Group
           IconButton(
-            icon: Icon(Icons.group, color: theme.iconTheme.color?.withOpacity(0.7)),
+            icon: Icon(Icons.group, color: theme.iconTheme.color?.withAlpha(179)),
             iconSize: 28,
             onPressed: _showGroupSheet,
           ),
@@ -286,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // Tombol Device
           IconButton(
-            icon: Icon(Icons.devices_other, color: theme.iconTheme.color?.withOpacity(0.7)),
+            icon: Icon(Icons.devices_other, color: theme.iconTheme.color?.withAlpha(179)),
             iconSize: 28,
             onPressed: _showDeviceSheet,
           ),

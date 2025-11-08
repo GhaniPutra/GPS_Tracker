@@ -11,9 +11,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notifications = true;
-  bool _area = true;
-  bool _quest = true;
-  bool _is3DView = false;
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +36,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'VAREUU',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -94,37 +91,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   });
                 },
               ),
-              // Fitur 2: Area
-              SwitchListTile(
-                secondary: const Icon(Icons.map_outlined), // Ganti ikon
-                title: const Text('Area'),
-                value: _area,
-                onChanged: (bool value) {
-                  setState(() {
-                    _area = value;
-                  });
-                },
-              ),
-              // Fitur 3: Lapisan (2D/3D)
-              SwitchListTile(
-                secondary: const Icon(Icons.layers_outlined), // Ganti ikon
-                title: const Text('Tampilan Peta 3D (Lapisan)'),
-                value: _is3DView,
-                onChanged: (bool value) {
-                  setState(() {
-                    _is3DView = value;
-                  });
-                },
-              ),
               // Fitur 4: Quest
-              SwitchListTile(
-                secondary: const Icon(Icons.redeem), // Ganti ikon
+              ListTile(
+                leading: const Icon(Icons.redeem), // Ganti ikon
                 title: const Text('Quest'),
-                value: _quest,
-                onChanged: (bool value) {
-                  setState(() {
-                    _quest = value;
-                  });
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pushNamed(context, '/quest');
                 },
               ),
               const Divider(),

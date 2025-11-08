@@ -12,12 +12,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  google_maps_flutter: ^2.6.1
+  flutter_map: ^6.1.0
   cupertino_icons: ^1.0.2
   provider: ^6.1.5+1
   geolocator: ^14.0.2
   flutter_blue_plus: ^1.31.18
   permission_handler: ^11.3.1
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

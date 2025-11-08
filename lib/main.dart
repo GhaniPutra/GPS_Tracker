@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gps_tracker_app/providers/theme_provider.dart';
 import 'package:gps_tracker_app/utils/theme.dart';
+import 'package:gps_tracker_app/screens/quest_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/settings_screen.dart';
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
             '/login': (context) => const LoginScreen(),
             '/home': (context) => const HomeScreen(),
             '/settings': (context) => const SettingsScreen(),
+            '/quest': (context) => const QuestScreen(),
           },
         );
       },

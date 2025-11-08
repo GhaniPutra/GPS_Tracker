@@ -11,8 +11,8 @@ class LoginScreen extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     return OutlinedButton.icon(
-      icon: Icon(icon, color: theme.colorScheme.onSurface.withOpacity(0.8)),
-      label: Text(text, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.87))),
+      icon: Icon(icon, color: theme.colorScheme.onSurface.withAlpha(204)),
+      label: Text(text, style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(222))),
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12),

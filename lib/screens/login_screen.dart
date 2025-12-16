@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_services.dart';
+
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -92,8 +94,12 @@ class LoginScreen extends StatelessWidget {
               _buildSocialButton(context,
                 icon: Icons.mail_outline, // Placeholder, ganti dengan logo Google
                 text: 'Continue with Google',
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/home');
+                onPressed: () async{ //sync auth google firebase
+                  try {
+                    await AuthService().loginGoogle();
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                  }
                 },
               ),
               const SizedBox(height: 10),

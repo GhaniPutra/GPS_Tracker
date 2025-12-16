@@ -7,8 +7,20 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:gps_tracker_app/firebase_options.dart';
 
-void main() {
+
+
+
+void main() async{
+  
+  WidgetsFlutterBinding.ensureInitialized(); //tambahan auth firebase 
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
     ChangeNotifierProvider(
       create: (context) => ThemeProvider(),

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:io';
 
@@ -149,14 +150,42 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
           title: Text(deviceName.isNotEmpty ? deviceName : 'Perangkat Tidak Dikenal'),
           subtitle: Text(result.device.remoteId.toString()),
           trailing: Text('${result.rssi} dBm'),
-          onTap: () {
+          onTap: () async {
             FlutterBluePlus.stopScan();
-            // TODO: Implement connection logic
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(
-                      'Menyambung ke ${deviceName.isNotEmpty ? deviceName : result.device.remoteId}...')),
-            );
+            final device = result.device;
+            final display = deviceName.isNotEmpty ? deviceName : result.device.remoteId.toString();
+
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Menyambung ke $display...')));
+
+            try {
+              // Jika sudah terhubung, tidak perlu connect lagi
+              final alreadyConnected = await device.connectionState.firstWhere((s) => true);
+              if (alreadyConnected == BluetoothConnectionState.connected) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sudah terhubung ke $display')));
+                Navigator.pop(context, true);
+                return;
+              }
+
+              // Coba koneksi dengan timeout
+              await device.connect().timeout(const Duration(seconds: 10));
+
+              // Tunggu hingga state connected atau timeout
+              final connected = await device.connectionState
+                  .firstWhere((s) => s == BluetoothConnectionState.connected)
+                  .timeout(const Duration(seconds: 5), onTimeout: () => BluetoothConnectionState.disconnected);
+
+              if (!mounted) return;
+              if (connected == BluetoothConnectionState.connected) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Berhasil terhubung ke $display')));
+                Navigator.pop(context, true);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal terhubung ke $display')));
+              }
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal terhubung: ${e.toString()}')));
+            }
           },
         );
       },

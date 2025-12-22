@@ -94,11 +94,12 @@ class LoginScreen extends StatelessWidget {
               _buildSocialButton(context,
                 icon: Icons.mail_outline, // Placeholder, ganti dengan logo Google
                 text: 'Continue with Google',
-                onPressed: () async{ //sync auth google firebase
+                onPressed: () async { //sync auth google firebase
+                  final messenger = ScaffoldMessenger.of(context);
                   try {
                     await AuthService().loginGoogle();
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                    messenger.showSnackBar(SnackBar(content: Text(e.toString())));
                   }
                 },
               ),

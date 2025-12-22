@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final MapController _mapController; // Initialize MapController directly
   LatLng? _currentPosition; // Variabel untuk menyimpan posisi saat ini
   StreamSubscription<Position>? _positionStreamSubscription; // Tambahkan ini
-  static final LatLng _initialPosition = const LatLng(-7.7956, 110.3695); // Koordinat Yogyakarta (placeholder)
+  static const LatLng _initialPosition = LatLng(-7.7956, 110.3695); // Koordinat Yogyakarta (placeholder)
   static const double _initialZoom = 14.0;
 
   // State untuk tipe dan detail peta

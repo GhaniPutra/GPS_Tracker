@@ -10,6 +10,9 @@ import 'screens/welcome_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:gps_tracker_app/firebase_options.dart';
 
+import 'services/key_manager.dart';
+import 'services/bluetooth_manager.dart';
+
 
 
 
@@ -20,6 +23,20 @@ void main() async{
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Fetch HMAC key from remote or secure storage and configure BluetoothManager
+  try {
+    final remoteBytes = await KeyManager().fetchFromRemote();
+    final keyBytes = remoteBytes ?? await KeyManager().getKeyBytes();
+    if (keyBytes != null && keyBytes.isNotEmpty) {
+      BluetoothManager().setHmacKey(keyBytes);
+      debugPrint('HMAC key loaded (${keyBytes.length} bytes)');
+    } else {
+      debugPrint('No HMAC key found in remote or storage');
+    }
+  } catch (e) {
+    debugPrint('Failed to load HMAC key: $e');
+  }
 
   runApp(
     ChangeNotifierProvider(

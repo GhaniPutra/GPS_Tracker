@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:gps_tracker_app/providers/theme_provider.dart';
+import 'package:gps_tracker_app/providers/bluetooth_provider.dart';
 import 'package:gps_tracker_app/utils/theme.dart';
 import 'package:gps_tracker_app/screens/quest_screen.dart';
 import 'screens/home_screen.dart';
@@ -12,9 +13,6 @@ import 'package:gps_tracker_app/firebase_options.dart';
 
 import 'services/key_manager.dart';
 import 'services/bluetooth_manager.dart';
-
-
-
 
 void main() async{
   
@@ -39,8 +37,11 @@ void main() async{
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => BluetoothProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -71,4 +72,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

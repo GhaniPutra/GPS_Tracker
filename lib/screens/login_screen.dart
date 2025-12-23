@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/auth_services.dart';
 
-
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
   // Helper widget untuk tombol sosial
   Widget _buildSocialButton(BuildContext context, {
     required IconData icon,
@@ -94,10 +98,12 @@ class LoginScreen extends StatelessWidget {
               _buildSocialButton(context,
                 icon: Icons.mail_outline, // Placeholder, ganti dengan logo Google
                 text: 'Continue with Google',
-                onPressed: () async { //sync auth google firebase
+                onPressed: () async{ //sync auth google firebase
+                  final navigator = Navigator.of(context);
                   final messenger = ScaffoldMessenger.of(context);
                   try {
                     await AuthService().loginGoogle();
+                    navigator.pushReplacementNamed('/home');
                   } catch (e) {
                     messenger.showSnackBar(SnackBar(content: Text(e.toString())));
                   }

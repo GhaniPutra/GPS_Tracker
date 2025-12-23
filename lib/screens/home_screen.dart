@@ -9,6 +9,8 @@ import '../widgets/device_bottom_sheet.dart';
 import '../widgets/group_bottom_sheet.dart';
 import '../widgets/profile_menu_dialog.dart';
 import '../widgets/map_type_bottom_sheet.dart';
+import 'package:provider/provider.dart';
+import '../providers/bluetooth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -192,21 +194,98 @@ class _HomeScreenState extends State<HomeScreen> {
                 subdomains: _getTileLayerSubdomains(),
               ),
 
-              if (_currentPosition != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentPosition!,
-                      width: 80,
-                      height: 80,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.red,
-                        size: 40.0,
-                      ),
+              // Phone location marker and markers for connected devices with known positions
+              Consumer<BluetoothProvider>(builder: (context, bt, child) {
+                // If a connected device was selected, focus map on its position
+                final selected = bt.getSelectedDevice();
+                if (selected != null && selected.lastPosition != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _mapController.move(selected.lastPosition!, 16.0);
+                    bt.clearSelection();
+                  });
+                }
+
+                // If a stored device position was selected, focus map there
+                final storedPos = bt.selectedKnownPosition;
+                if (storedPos != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _mapController.move(storedPos, 16.0);
+                    bt.clearSelectedKnownPosition();
+                  });
+                }
+
+                final markers = <Marker>[];
+
+                // Phone location marker
+                if (_currentPosition != null) {
+                  markers.add(Marker(
+                    point: _currentPosition!,
+                    width: 80,
+                    height: 80,
+                    child: const Icon(
+                      Icons.location_on,
+                      color: Colors.red,
+                      size: 40.0,
                     ),
-                  ],
-                ),
+                  ));
+                }
+
+                // Markers for currently connected devices (live)
+                for (final conn in bt.connectedDevices) {
+                  if (conn.lastPosition != null) {
+                    markers.add(Marker(
+                      point: conn.lastPosition!,
+                      width: 70,
+                      height: 70,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.gps_fixed, color: Colors.blue, size: 28),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(conn.name, style: Theme.of(context).textTheme.bodySmall),
+                          ),
+                        ],
+                      ),
+                    ));
+                  }
+                }
+
+                // Markers for stored devices last-known positions (when not currently connected)
+                for (final sd in bt.knownDevices) {
+                  if (sd.lastLat != null && sd.lastLon != null) {
+                    final isConnected = bt.connectedDevices.any((c) => c.id == sd.id && c.lastPosition != null);
+                    if (isConnected) continue; // prefer the live marker
+
+                    markers.add(Marker(
+                      point: LatLng(sd.lastLat!, sd.lastLon!),
+                      width: 64,
+                      height: 64,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_off, color: Colors.grey, size: 26),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(sd.name, style: Theme.of(context).textTheme.bodySmall),
+                          ),
+                        ],
+                      ),
+                    ));
+                  }
+                }
+
+                if (markers.isEmpty) return const SizedBox.shrink();
+
+                return MarkerLayer(markers: markers);              }),
             ],
           ),
 

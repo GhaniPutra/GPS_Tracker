@@ -6,6 +6,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:gps_tracker_app/providers/bluetooth_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:latlong2/latlong.dart';
 
 class BluetoothScanScreen extends StatefulWidget {
   const BluetoothScanScreen({super.key});
@@ -144,12 +145,42 @@ class _BluetoothScanScreenState extends State<BluetoothScanScreen> {
     try {
       await device.connect();
 
-      _connectionStateSubscription = device.connectionState.listen((state) {
+      _connectionStateSubscription = device.connectionState.listen((state) async {
         if (state == BluetoothConnectionState.connected) {
-          bluetoothProvider.addDevice(device);
-           _showSuccessSnackbar('Berhasil terhubung ke ${device.platformName}');
+          await bluetoothProvider.addDevice(device);
+          _showSuccessSnackbar('Berhasil terhubung ke ${device.platformName}');
+
+          // Try to discover simple 'lat,lon' ASCII payloads on readable characteristics
+          try {
+            final services = await device.discoverServices();
+            for (final s in services) {
+              for (final c in s.characteristics) {
+                try {
+                  final val = await c.read();
+                  if (val.isEmpty) continue;
+                  final str = String.fromCharCodes(val);
+                  // Expected simple format: "lat,lon" e.g. "-7.7,110.36"
+                  final parts = str.split(',');
+                  if (parts.length >= 2) {
+                    final lat = double.tryParse(parts[0].trim());
+                    final lon = double.tryParse(parts[1].trim());
+                    if (lat != null && lon != null) {
+                      // update provider (this will also persist)
+                      await bluetoothProvider.updateDevicePosition(device, LatLng(lat, lon));
+                      // stop once parsed
+                      break;
+                    }
+                  }
+                } catch (_) {
+                  // ignore parse/read errors for non-GPS chars or non-readable chars
+                }
+              }
+            }
+          } catch (e) {
+            // ignore discovery errors here
+          }
         } else if (state == BluetoothConnectionState.disconnected) {
-          bluetoothProvider.removeDevice(device);
+          await bluetoothProvider.removeDevice(device);
           if (!mounted) return;
            ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Terputus dari ${device.platformName}')),

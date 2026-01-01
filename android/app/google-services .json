@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "961156032546",
+    "project_id": "gps-tracker-538d4",
+    "storage_bucket": "gps-tracker-538d4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:961156032546:android:41a6b58301e07f53dcc27b",
+        "android_client_info": {
+          "package_name": "com.example.pam_ta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "961156032546-5gipshb5n16lqbj8e6jpehg75i491hve.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pam_ta",
+            "certificate_hash": "5e6add74ffe573e69d194c9e9cc0c7416f395d84"
+          }
+        },
+        {
+          "client_id": "961156032546-00a1o4jhhdprnpm06ab2fcnofle7l1r6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsWiPhKRG10bIo28UvdquKT51KWW76cJw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "961156032546-00a1o4jhhdprnpm06ab2fcnofle7l1r6.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "961156032546-ltr3qmgrns4rfmc0ec8uqkq0q3lh2vbi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pamTa"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

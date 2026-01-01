@@ -1,0 +1,87 @@
+{
+  "rules": {
+    "invites": {
+      "$inviteCode": {
+        ".read": "auth != null && data.child('status').val() == 'pending'",
+        ".write": "auth != null && (!data.exists() || data.child('status').val() == 'pending')",
+        "creatorId": {
+          ".validate": "auth != null && (newData.val() == auth.uid || !newData.exists())"
+        },
+        "status": {
+          ".validate": "newData.val() in ['pending', 'accepted', 'expired']"
+        },
+        "expiresAt": {
+          ".validate": "newData.val() > now"
+        },
+        "createdAt": {
+          ".validate": "newData.val() != null"
+        }
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null && ($userId == auth.uid || root.child('relations').child(auth.uid).child($userId).child('status').val() == 'active')",
+        ".write": "auth != null && $userId == auth.uid",
+        "profile": {
+          ".validate": "newData.child('name').val() is string && newData.child('name').val().length <= 100"
+        },
+        "createdAt": {
+          ".validate": "newData.val() != null"
+        }
+      }
+    },
+    "relations": {
+      "$relationId": {
+        ".read": "auth != null && (data.child('userA').val() == auth.uid || data.child('userB').val() == auth.uid)",
+        ".write": "auth != null && (data.exists() ? (data.child('userA').val() == auth.uid || data.child('userB').val() == auth.uid) : newData.child('userA').val() == auth.uid || newData.child('userB').val() == auth.uid)",
+        "userA": {
+          ".validate": "newData.val() is string"
+        },
+        "userB": {
+          ".validate": "newData.val() is string && newData.val() != data.child('userA').val()"
+        },
+        "status": {
+          ".validate": "newData.val() in ['pending', 'active', 'revoked']"
+        },
+        "createdAt": {
+          ".validate": "newData.val() != null"
+        }
+      }
+    },
+    "user_locations": {
+      "$userId": {
+        ".read": "auth != null && ($userId == auth.uid || root.child('relations').child(auth.uid + '_' + $userId).child('status').val() == 'active' || root.child('relations').child($userId + '_' + auth.uid).child('status').val() == 'active')",
+        ".write": "auth != null && $userId == auth.uid",
+        "lastUpdate": {
+          ".validate": "newData.val() != null"
+        },
+        "lat": {
+          ".validate": "newData.val() is number && newData.val() >= -90 && newData.val() <= 90"
+        },
+        "lng": {
+          ".validate": "newData.val() is number && newData.val() >= -180 && newData.val() <= 180"
+        },
+        "sharedWith": {
+          "$sharedUserId": {
+            ".validate": "newData.val() == true"
+          }
+        }
+      }
+    },
+    "user_invites": {
+      "$userId": {
+        ".read": "auth != null && $userId == auth.uid",
+        ".write": "auth != null && $userId == auth.uid"
+      }
+    },
+    "user_relations": {
+      "$userId": {
+        "$relatedUserId": {
+          ".read": "auth != null && $userId == auth.uid",
+          ".write": "auth != null && $userId == auth.uid"
+        }
+      }
+    }
+  }
+}
+

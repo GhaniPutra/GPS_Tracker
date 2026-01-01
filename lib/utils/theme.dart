@@ -43,6 +43,7 @@ class AppColors {
   static const Color markerUser = Color(0xFFEF4444); // Red for current location
   static const Color markerDevice = Color(0xFF3B82F6); // Blue for devices
   static const Color markerDeviceOffline = Color(0xFF94A3B8); // Gray for offline
+  static const Color markerConnectedUser = Color(0xFF10B981); // Green for connected users
   
   // Gradient Colors
   static const List<Color> primaryGradient = [Color(0xFF2563EB), Color(0xFF7C3AED)];
@@ -213,6 +214,14 @@ class AppShadows {
   static const List<BoxShadow> glowSuccess = [
     BoxShadow(
       color: Color(0x4022C55E),
+      blurRadius: 20,
+      offset: Offset(0, 0),
+    ),
+  ];
+  
+  static const List<BoxShadow> glowSecondary = [
+    BoxShadow(
+      color: Color(0x4010B981),
       blurRadius: 20,
       offset: Offset(0, 0),
     ),

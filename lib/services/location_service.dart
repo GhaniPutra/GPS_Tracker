@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -79,61 +80,83 @@ class LocationService {
   /// Start sharing location with all active relations
   Future<void> startSharing() async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('❌ Cannot start sharing: User not authenticated');
+      return;
+    }
 
-    if (_isSharing) return;
+    if (_isSharing) {
+      debugPrint('⚠️ Location sharing already active');
+      return;
+    }
+    
+    debugPrint('🚀 Starting location sharing for user: ${user.uid}');
     _isSharing = true;
 
     // Get all active relations
     final relations = await RelationService().getActiveRelationsOnce();
     final sharedWith = relations.map((r) => r.getOtherUserId(user.uid)).toList();
+    
+    debugPrint('📡 Sharing location with ${sharedWith.length} users: $sharedWith');
 
     // Request location permissions
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
+      debugPrint('❌ Location services are disabled');
       _isSharing = false;
       throw Exception('Location services are disabled');
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
+    debugPrint('📍 Current permission: $permission');
+    
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      debugPrint('📍 Permission after request: $permission');
       if (permission == LocationPermission.denied) {
+        debugPrint('❌ Location permission denied');
         _isSharing = false;
         throw Exception('Location permission denied');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
+      debugPrint('❌ Location permission permanently denied');
       _isSharing = false;
       throw Exception('Location permission permanently denied');
     }
 
     // Get initial position
     try {
+      debugPrint('📍 Getting initial position...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      debugPrint('✅ Initial position: ${position.latitude}, ${position.longitude}');
       await _updateLocation(position.latitude, position.longitude, sharedWith);
     } catch (e) {
-      // Silent fail for initial position
+      debugPrint('⚠️ Failed to get initial position: $e');
     }
 
     // Start streaming updates
+    debugPrint('🔄 Starting position stream...');
     _positionStream = Geolocator.getPositionStream(
       locationSettings: LocationSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: _minDistance.toInt(),
       ),
     ).listen((Position position) async {
+      debugPrint('📍 Position update: ${position.latitude}, ${position.longitude}');
       final relations = await RelationService().getActiveRelationsOnce();
       final updatedSharedWith =
           relations.map((r) => r.getOtherUserId(user.uid)).toList();
       await _updateLocation(
           position.latitude, position.longitude, updatedSharedWith);
     }, onError: (error) {
-      // Silent fail for stream errors
+      debugPrint('❌ Position stream error: $error');
     });
+    
+    debugPrint('✅ Location sharing started successfully');
   }
 
   /// Stop sharing location
@@ -153,7 +176,10 @@ class LocationService {
     List<String> sharedWith,
   ) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('❌ Cannot update location: User not authenticated');
+      return;
+    }
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final locationData = {
@@ -162,15 +188,27 @@ class LocationService {
       'lastUpdate': now,
     };
 
-    // Update location
-    await _database.child('$_locationsPath/${user.uid}').update(locationData);
+    debugPrint('📝 Updating location for ${user.uid}');
+    debugPrint('   Coordinates: $lat, $lng');
+    debugPrint('   Shared with: $sharedWith');
 
-    // Update sharedWith list
-    if (sharedWith.isNotEmpty) {
-      final sharedWithMap = {for (final userId in sharedWith) userId: true};
-      await _database
-          .child('$_locationsPath/${user.uid}/sharedWith')
-          .set(sharedWithMap);
+    try {
+      // Update location
+      await _database.child('$_locationsPath/${user.uid}').update(locationData);
+      debugPrint('✅ Location updated in Firebase');
+
+      // Update sharedWith list
+      if (sharedWith.isNotEmpty) {
+        final sharedWithMap = {for (final userId in sharedWith) userId: true};
+        await _database
+            .child('$_locationsPath/${user.uid}/sharedWith')
+            .set(sharedWithMap);
+        debugPrint('✅ SharedWith list updated: ${sharedWith.length} users');
+      } else {
+        debugPrint('⚠️ No users to share with');
+      }
+    } catch (e) {
+      debugPrint('❌ Error updating location: $e');
     }
   }
 
@@ -216,12 +254,84 @@ class LocationService {
     });
   }
 
-  /// Stream locations from all active relations
+  /// Stream locations from all active relations using Firebase Realtime Database
+  /// This provides real-time updates instead of polling
   Stream<Map<String, UserLocation>> streamAllRelatedLocations() {
     final user = _auth.currentUser;
-    if (user == null) return Stream.value({});
+    if (user == null) {
+      debugPrint('❌ Cannot stream locations: User not authenticated');
+      return Stream.value({});
+    }
 
+    debugPrint('🔄 Starting to stream locations for related users');
+
+    // Get all active relations and create a combined stream
     return RelationService().getActiveRelations().asyncMap((relations) async {
+      debugPrint('📡 Found ${relations.length} active relations');
+      final userIds = relations.map((r) => r.getOtherUserId(user.uid)).toList();
+      return userIds;
+    }).asyncExpand((userIds) async* {
+      if (userIds.isEmpty) {
+        yield {};
+        return;
+      }
+
+      debugPrint('🎯 Setting up Firebase listeners for ${userIds.length} users');
+
+      // Create a stream that combines all user location streams
+      final streams = userIds.map((userId) => streamUserLocation(userId)).toList();
+
+      // Combine all streams into one
+      final combinedStream = Stream<Map<String, UserLocation>>.multi((controller) {
+        final locations = <String, UserLocation>{};
+        final subscriptions = <StreamSubscription<dynamic>>[];
+
+        for (int i = 0; i < userIds.length; i++) {
+          final userId = userIds[i];
+          subscriptions.add(streams[i].listen((location) {
+            if (location != null) {
+              locations[userId] = location;
+              debugPrint('📍 Update for $userId: ${location.lat}, ${location.lng}');
+            } else {
+              locations.remove(userId);
+              debugPrint('⚠️ Location removed for $userId');
+            }
+            // Emit a copy of locations
+            controller.add(Map<String, UserLocation>.from(locations));
+          }, onError: (error) {
+            debugPrint('❌ Error streaming location for $userId: $error');
+          }));
+        }
+
+        // Add initial empty map
+        controller.add(locations);
+
+        // Cleanup on cancel
+        controller.onCancel = () {
+          for (final sub in subscriptions) {
+            sub.cancel();
+          }
+        };
+      });
+
+      yield* combinedStream;
+    });
+  }
+
+  /// Alternative: Simple polling-based stream for fallback
+  Stream<Map<String, UserLocation>> streamAllRelatedLocationsPolling() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      debugPrint('❌ Cannot stream locations: User not authenticated');
+      return Stream.value({});
+    }
+
+    debugPrint('🔄 Starting polling-based location stream');
+
+    // Poll every 5 seconds as fallback
+    return Stream.periodic(const Duration(seconds: 5)).asyncMap((_) async {
+      debugPrint('🔄 Polling locations...');
+      final relations = await RelationService().getActiveRelationsOnce();
       final locations = <String, UserLocation>{};
 
       for (final relation in relations) {
@@ -232,6 +342,7 @@ class LocationService {
         }
       }
 
+      debugPrint('📊 Polled ${locations.length} locations');
       return locations;
     });
   }

@@ -7,11 +7,13 @@ import 'package:provider/provider.dart';
 import 'package:gps_tracker_app/providers/auth_provider.dart';
 import 'package:gps_tracker_app/services/auth_services.dart';
 import '../providers/bluetooth_provider.dart';
+import '../providers/connection_provider.dart';
 import '../widgets/device_bottom_sheet.dart';
 import '../widgets/group_bottom_sheet.dart';
 import '../widgets/profile_menu_dialog.dart';
 import '../widgets/map_type_bottom_sheet.dart';
 import '../utils/theme.dart';
+import '../services/location_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -271,6 +273,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 if (markers.isEmpty) return const SizedBox.shrink();
                 return MarkerLayer(markers: markers);
               }),
+
+              // Connected users markers from ConnectionProvider
+              Consumer<ConnectionProvider>(
+                builder: (context, connectionProvider, child) {
+                  final connectedUsers = connectionProvider.connectedUsers;
+                  final markers = <Marker>[];
+
+                  for (final user in connectedUsers) {
+                    if (user.location != null) {
+                      markers.add(Marker(
+                        point: user.location!.toLatLng(),
+                        width: 70,
+                        height: 70,
+                        child: _buildConnectedUserMarker(
+                          user.name,
+                          user.isOnline,
+                          user.initials,
+                        ),
+                      ));
+                    }
+                  }
+
+                  if (markers.isEmpty) return const SizedBox.shrink();
+                  return MarkerLayer(markers: markers);
+                },
+              ),
             ],
           ),
 
@@ -437,6 +465,81 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ],
+    );
+  }
+
+  /// Build marker for connected users (via ConnectionProvider)
+  Widget _buildConnectedUserMarker(String name, bool isOnline, String initials) {
+    final theme = Theme.of(context);
+    
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final scale = 1.0 + 0.1 * _pulseController.value;
+        
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // User avatar marker
+            Transform.scale(
+              scale: isOnline ? scale : 1.0,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isOnline ? AppColors.markerConnectedUser : AppColors.markerDeviceOffline,
+                  boxShadow: isOnline ? AppShadows.glowSecondary : AppShadows.small,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Name tag
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.cardColor.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(AppBorderRadius.sm),
+                boxShadow: AppShadows.small,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Online indicator
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isOnline ? Colors.green : Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    name,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

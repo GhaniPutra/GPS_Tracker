@@ -5,6 +5,7 @@ import '../services/invite_service.dart';
 import '../services/relation_service.dart';
 import '../services/location_service.dart';
 import 'package:latlong2/latlong.dart';
+import 'dart:async';
 
 /// Represents a connected user with their location
 class ConnectedUser {
@@ -61,6 +62,24 @@ class ConnectedUser {
       connectedAt: relation.createdAt,
     );
   }
+
+  ConnectedUser copyWith({
+    String? userId,
+    String? name,
+    String? photoUrl,
+    UserLocation? location,
+    bool? isOnline,
+    DateTime? connectedAt,
+  }) {
+    return ConnectedUser(
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      photoUrl: photoUrl ?? this.photoUrl,
+      location: location ?? this.location,
+      isOnline: isOnline ?? this.isOnline,
+      connectedAt: connectedAt ?? this.connectedAt,
+    );
+  }
 }
 
 /// Status for connection operations
@@ -81,6 +100,7 @@ class ConnectionProvider with ChangeNotifier {
   String? _currentInviteCode;
   ConnectionStatus _state = ConnectionStatus.idle;
   String? _errorMessage;
+  StreamSubscription? _locationSubscription;
 
   // Connection state getters
   List<ConnectedUser> get connectedUsers => List.unmodifiable(_connectedUsers);
@@ -102,6 +122,7 @@ class ConnectionProvider with ChangeNotifier {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _startListeningToRelations();
+      _startListeningToLocations();
     }
   }
 
@@ -117,18 +138,71 @@ class ConnectionProvider with ChangeNotifier {
         final otherUserId = relation.getOtherUserId(user.uid);
         final userInfo = await _relationService.getRelatedUserInfo(otherUserId);
 
+        // Check if user already exists to preserve location
+        final existingUser = _connectedUsers.firstWhere(
+          (u) => u.userId == otherUserId,
+          orElse: () => ConnectedUser(
+            userId: otherUserId,
+            name: '',
+            connectedAt: DateTime.now(),
+          ),
+        );
+
         users.add(ConnectedUser(
           userId: otherUserId,
           name: userInfo?.displayName ?? relation.getOtherUserName(user.uid),
           photoUrl: userInfo?.photoUrl,
-          location: null,
+          location: existingUser.location,
           connectedAt: relation.createdAt,
         ));
       }
 
       _connectedUsers = users;
       notifyListeners();
+
+      // Auto-start location sharing if there are connected users
+      if (relations.isNotEmpty && !_locationService.isSharing) {
+        debugPrint('🎯 Auto-starting location sharing for ${relations.length} connections');
+        startLocationSharing();
+      }
     });
+  }
+
+  /// Start listening to real-time location updates from connected users
+  void _startListeningToLocations() {
+    _locationSubscription?.cancel();
+    _locationSubscription = _locationService.streamAllRelatedLocations().listen(
+      (locations) {
+        debugPrint('📍 Received location updates for ${locations.length} users');
+        updateAllLocations(locations);
+      },
+      onError: (error) {
+        debugPrint('❌ Location stream error: $error');
+      },
+    );
+  }
+
+  /// Update locations for all connected users
+  void updateAllLocations(Map<String, UserLocation> locations) {
+    bool hasUpdates = false;
+
+    for (int i = 0; i < _connectedUsers.length; i++) {
+      final userId = _connectedUsers[i].userId;
+      final newLocation = locations[userId];
+
+      if (newLocation != null && newLocation != _connectedUsers[i].location) {
+        _connectedUsers[i] = _connectedUsers[i].copyWith(
+          location: newLocation,
+          isOnline: true,
+        );
+        hasUpdates = true;
+        debugPrint('📍 Updated location for user $userId: ${newLocation.lat}, ${newLocation.lng}');
+      }
+    }
+
+    if (hasUpdates) {
+      notifyListeners();
+    }
   }
 
   /// Create a new invite code
@@ -226,13 +300,6 @@ class ConnectionProvider with ChangeNotifier {
         connectedAt: user.connectedAt,
       );
       notifyListeners();
-    }
-  }
-
-  /// Update all connected users' locations
-  void updateAllLocations(Map<String, UserLocation> locations) {
-    for (final entry in locations.entries) {
-      updateUserLocation(entry.key, entry.value);
     }
   }
 

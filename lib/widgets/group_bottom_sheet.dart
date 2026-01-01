@@ -370,18 +370,6 @@ class _AddMemberMethodSheet extends StatelessWidget {
               await _showInviteCodeSheet(context);
             },
           ),
-          const SizedBox(height: AppSpacing.md),
-          _buildMethodTile(
-            context,
-            icon: Icons.content_copy,
-            title: 'Salin Kode',
-            subtitle: 'Salin kode yang sudah ada',
-            color: AppColors.secondary,
-            onTap: () {
-              Navigator.pop(context);
-              _showExistingCodeSheet(context);
-            },
-          ),
           const SizedBox(height: AppSpacing.xl),
         ],
       ),
@@ -479,25 +467,6 @@ class _AddMemberMethodSheet extends StatelessWidget {
     }
   }
 
-  /// Show existing invite code sheet
-  void _showExistingCodeSheet(BuildContext context) {
-    final cp = Provider.of<ConnectionProvider>(context, listen: false);
-    if (cp.currentInviteCode != null) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (ctx) => _InviteCodeDisplaySheet(code: cp.currentInviteCode!),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tidak ada kode invite. Buat kode baru terlebih dahulu.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 }
 
 /// Display invite code in a bottom sheet with copy functionality

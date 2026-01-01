@@ -449,38 +449,37 @@ class _AddMemberMethodSheet extends StatelessWidget {
     );
   }
 
+  /// Show invite code sheet - generates new code if none exists
   Future<void> _showInviteCodeSheet(BuildContext context) async {
-    try {
-      final provider = Provider.of<ConnectionProvider>(context, listen: false);
-      // Potentially show a loading indicator here
+    final provider = Provider.of<ConnectionProvider>(context, listen: false);
+
+    // Generate new invite if none exists or previous one failed
+    if (provider.currentInviteCode == null) {
       await provider.createInvite();
-    
-      // After 'await', the state of 'provider' has been updated.
-      if (provider.state == ConnectionStatus.error) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${provider.errorMessage ?? "Gagal membuat undangan"}')),
-        );
-      } else if (provider.currentInviteCode != null) {
-        if (!context.mounted) return;
-        // Show invite code dialog or bottom sheet from existing implementation
-        showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (ctx) => _InviteCodeDisplaySheet(code: provider.currentInviteCode!),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error creating invite: $e');
-      if (context.mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membuat undangan: $e')),
-         );
-      }
+    }
+
+    if (!context.mounted) return;
+
+    // Check state after generation
+    if (provider.state == ConnectionStatus.error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage ?? 'Gagal membuat undangan'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } else if (provider.currentInviteCode != null) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _InviteCodeDisplaySheet(code: provider.currentInviteCode!),
+      );
     }
   }
 
+  /// Show existing invite code sheet
   void _showExistingCodeSheet(BuildContext context) {
     final cp = Provider.of<ConnectionProvider>(context, listen: false);
     if (cp.currentInviteCode != null) {
@@ -494,12 +493,14 @@ class _AddMemberMethodSheet extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Tidak ada kode invite. Buat kode baru terlebih dahulu.'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 }
 
+/// Display invite code in a bottom sheet with copy functionality
 class _InviteCodeDisplaySheet extends StatefulWidget {
   final String code;
 
@@ -510,15 +511,41 @@ class _InviteCodeDisplaySheet extends StatefulWidget {
 }
 
 class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
+  bool _copied = false;
+
+  /// Format code for display (ABC 123)
+  String get _formattedCode {
+    if (widget.code.length == 6) {
+      return '${widget.code.substring(0, 3)} ${widget.code.substring(3, 6)}';
+    }
+    return widget.code;
+  }
+
+  /// Copy code to clipboard
+  Future<void> _copyCode() async {
+    await Clipboard.setData(ClipboardData(text: widget.code));
+    
+    if (!mounted) return;
+    
+    setState(() => _copied = true);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Kode invite disalin ke clipboard'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.success,
+      ),
+    );
+
+    // Reset copied state after 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    String formattedCode = widget.code;
-    if (widget.code.length == 6) {
-      formattedCode = '${widget.code.substring(0, 3)} ${widget.code.substring(3, 6)}';
-    }
 
     return Container(
       decoration: BoxDecoration(
@@ -531,6 +558,7 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Handle bar
           Center(
             child: Container(
               width: 40,
@@ -542,11 +570,14 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          
+          // Invite code card
           Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               gradient: AppGradients.primary,
               borderRadius: BorderRadius.circular(AppBorderRadius.lg),
+              boxShadow: AppShadows.glowPrimary,
             ),
             child: Column(
               children: [
@@ -565,7 +596,7 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  formattedCode,
+                  _formattedCode,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 32,
@@ -583,23 +614,17 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
               ],
             ),
           ),
+          
           const SizedBox(height: AppSpacing.lg),
+          
+          // Action buttons
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.content_copy),
-                  label: const Text('Salin Kode'),
-                  onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: widget.code));
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Kode invite disalin'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
+                  icon: Icon(_copied ? Icons.check : Icons.content_copy),
+                  label: Text(_copied ? 'Tersalin' : 'Salin Kode'),
+                  onPressed: _copyCode,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         isDark ? AppColors.darkCard : AppColors.lightCard,
@@ -613,9 +638,7 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.share),
                   label: const Text('Bagikan'),
-                  onPressed: () {
-                    // Share functionality
-                  },
+                  onPressed: () => _shareCode(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -625,12 +648,29 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
               ),
             ],
           ),
+          
           const SizedBox(height: AppSpacing.md),
+          
+          // Close button
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Tutup'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Share invite code using system share sheet
+  void _shareCode() {
+    // TODO: Implement share functionality using share_plus package
+    // For now, copy to clipboard
+    _copyCode();
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Gunakan fitur share untuk membagikan kode'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

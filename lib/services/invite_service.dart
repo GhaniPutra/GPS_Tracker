@@ -81,110 +81,85 @@ class InviteService {
   }
 
   /// Create a new invite code for the current user
+  /// Returns InviteResult with inviteCode on success
   Future<InviteResult> createInvite({String? creatorName}) async {
-  try {
-    final user = _auth.currentUser;
-    if (user == null) {
-      debugPrint('❌ Create Invite Error: User not authenticated');
-      return InviteResult.error('User not authenticated');
-    }
-
-    debugPrint('✅ User authenticated: ${user.uid}');
-    debugPrint('🔗 Database URL: ${_database.ref.root.toString()}');
-
-    // Test database connection first
     try {
-      debugPrint('🧪 Testing database connection...');
-      final testRef = _database.child('_connection_test');
-      await testRef.set({'timestamp': DateTime.now().millisecondsSinceEpoch})
-          .timeout(const Duration(seconds: 10));
-      await testRef.remove();
-      debugPrint('✅ Database connection OK');
-    } catch (e) {
-      debugPrint('❌ Database connection FAILED: $e');
-      return InviteResult.error('Cannot connect to database: $e');
-    }
-
-    // Generate unique code
-    String code;
-    bool isUnique = false;
-    int attempts = 0;
-
-    do {
-      code = _generateCode();
-      debugPrint('🔄 Attempting code: $code');
-      
-      try {
-        final snapshot = await _database
-            .child('$_invitesPath/$code')
-            .once()
-            .timeout(const Duration(seconds: 10));
-        isUnique = snapshot.snapshot.value == null;
-        debugPrint('✅ Code check complete. Is unique: $isUnique');
-      } catch (e) {
-        debugPrint('❌ Error checking code uniqueness: $e');
-        if (e.toString().contains('timeout')) {
-          return InviteResult.error('Database timeout. Check your internet connection.');
-        }
-        return InviteResult.error('Failed to check code: $e');
+      final user = _auth.currentUser;
+      if (user == null) {
+        _log('❌ User not authenticated');
+        return InviteResult.error('User not authenticated');
       }
-      
-      attempts++;
-    } while (!isUnique && attempts < 10);
 
-    if (!isUnique) {
-      debugPrint('❌ Failed to generate unique code after $attempts attempts');
-      return InviteResult.error('Failed to generate unique code');
-    }
+      // Test database connection
+      try {
+        final testRef = _database.child('_connection_test');
+        await testRef.set({'timestamp': DateTime.now().millisecondsSinceEpoch})
+            .timeout(const Duration(seconds: 10));
+        await testRef.remove();
+      } catch (e) {
+        _log('❌ Database connection failed: $e');
+        return InviteResult.error('Cannot connect to database: $e');
+      }
 
-    debugPrint('🎯 Generated unique code: $code');
+      // Generate unique code
+      String code;
+      bool isUnique = false;
+      int attempts = 0;
 
-    final now = DateTime.now();
-    final expiresAt = now.add(_expiryDuration).millisecondsSinceEpoch;
+      do {
+        code = _generateCode();
+        try {
+          final snapshot = await _database
+              .child('$_invitesPath/$code')
+              .once()
+              .timeout(const Duration(seconds: 10));
+          isUnique = snapshot.snapshot.value == null;
+        } catch (e) {
+          if (e.toString().contains('timeout')) {
+            return InviteResult.error('Database timeout. Check your internet connection.');
+          }
+          return InviteResult.error('Failed to check code: $e');
+        }
+        attempts++;
+      } while (!isUnique && attempts < 10);
 
-    final inviteData = {
-      'creatorId': user.uid,
-      'creatorName': creatorName ?? user.displayName ?? user.email ?? 'User',
-      'status': 'pending',
-      'createdAt': now.millisecondsSinceEpoch,
-      'expiresAt': expiresAt,
-    };
+      if (!isUnique) {
+        return InviteResult.error('Failed to generate unique code');
+      }
 
-    debugPrint('📝 Writing invite data to: $_invitesPath/$code');
-    debugPrint('Data: $inviteData');
+      final now = DateTime.now();
+      final expiresAt = now.add(_expiryDuration).millisecondsSinceEpoch;
 
-    try {
-      // Write to invites node with timeout
+      final inviteData = {
+        'creatorId': user.uid,
+        'creatorName': creatorName ?? user.displayName ?? user.email ?? 'User',
+        'status': 'pending',
+        'createdAt': now.millisecondsSinceEpoch,
+        'expiresAt': expiresAt,
+      };
+
+      // Write to invites node
       await _database
           .child('$_invitesPath/$code')
           .set(inviteData)
           .timeout(const Duration(seconds: 10));
-      debugPrint('✅ Invite written successfully');
-    } catch (e) {
-      debugPrint('❌ Error writing invite: $e');
-      return InviteResult.error('Failed to write invite: $e');
-    }
 
-    try {
       // Track invite in user's sent invites
       await _database
           .child('$_userInvitesPath/${user.uid}/sent/$code')
           .set({'createdAt': now.millisecondsSinceEpoch})
           .timeout(const Duration(seconds: 10));
-      debugPrint('✅ Invite tracked in user_invites');
-    } catch (e) {
-      debugPrint('⚠️ Error tracking invite (non-critical): $e');
-      // Continue even if tracking fails
-    }
 
-    debugPrint('🎉 Invite created successfully: $code');
-    return InviteResult.success(code);
-  } catch (e, stackTrace) {
-    debugPrint('❌ Create Invite Error: $e');
-    debugPrint('Stack trace: $stackTrace');
-    return InviteResult.error('Failed to create invite: $e');
+      _log('✅ Invite created: $code');
+      return InviteResult.success(code);
+    } catch (e, stackTrace) {
+      _log('❌ Create invite error: $e');
+      if (kDebugMode) {
+        _log('Stack trace: $stackTrace');
+      }
+      return InviteResult.error('Failed to create invite: $e');
+    }
   }
-}
 
   /// Accept an invite code and create bidirectional relation
   Future<InviteResult> acceptInvite(String code) async {
@@ -273,21 +248,19 @@ class InviteService {
 
   /// Generate a consistent relation ID from two user IDs
   String _generateRelationId(String uid1, String uid2) {
-    // Sort IDs alphabetically to ensure consistency
     final sorted = [uid1, uid2]..sort();
     return '${sorted[0]}_${sorted[1]}';
   }
 
   /// Update user profile in database
   Future<void> _updateUserProfile(User user) async {
-      final profileData = {
-        'name': user.displayName,
-        'email': user.email,
-        'photoURL': user.photoURL,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      };
+    final profileData = {
+      'name': user.displayName,
+      'email': user.email,
+      'photoURL': user.photoURL,
+      'updatedAt': DateTime.now().millisecondsSinceEpoch,
+    };
 
-    // Only update if fields are present
     profileData.removeWhere((key, value) => value == null);
 
     if (profileData.isNotEmpty) {
@@ -342,7 +315,7 @@ class InviteService {
     }
   }
 
-  /// Clean up expired invites (can be called periodically)
+  /// Clean up expired invites
   Future<void> cleanupExpiredInvites() async {
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -411,6 +384,14 @@ class InviteService {
       }).toList()
         ..sort((a, b) => (b['createdAt'] as int).compareTo(a['createdAt'] as int));
     });
+  }
+
+  /// Debug logging - only in debug mode
+  void _log(String message) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print(message);
+    }
   }
 }
 

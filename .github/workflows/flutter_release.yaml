@@ -22,8 +22,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          flutter-version: '3.13.9'  # versi stabil terbaru
+          flutter-version: 'stable'  # versi stabil terbaru
 
       - name: Flutter doctor
         run: flutter doctor -v

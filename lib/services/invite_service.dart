@@ -81,25 +81,19 @@ class InviteService {
   }
 
   /// Create a new invite code for the current user
-  /// Returns InviteResult with inviteCode on success
   Future<InviteResult> createInvite({String? creatorName}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        _log('❌ User not authenticated');
+        debugPrint('❌ Create Invite Error: User not authenticated');
         return InviteResult.error('User not authenticated');
       }
 
-      // Test database connection
-      try {
-        final testRef = _database.child('_connection_test');
-        await testRef.set({'timestamp': DateTime.now().millisecondsSinceEpoch})
-            .timeout(const Duration(seconds: 10));
-        await testRef.remove();
-      } catch (e) {
-        _log('❌ Database connection failed: $e');
-        return InviteResult.error('Cannot connect to database: $e');
-      }
+      debugPrint('✅ User authenticated: ${user.uid}');
+
+      // REMOVE LIMIT - Allow creating new codes anytime
+      // Optional: Cleanup old unused codes first
+      await _cleanupUserUnusedInvites(user.uid);
 
       // Generate unique code
       String code;
@@ -108,24 +102,29 @@ class InviteService {
 
       do {
         code = _generateCode();
+        debugPrint('🔄 Attempting code: $code');
+        
         try {
           final snapshot = await _database
               .child('$_invitesPath/$code')
               .once()
               .timeout(const Duration(seconds: 10));
           isUnique = snapshot.snapshot.value == null;
+          debugPrint('✅ Code check complete. Is unique: $isUnique');
         } catch (e) {
-          if (e.toString().contains('timeout')) {
-            return InviteResult.error('Database timeout. Check your internet connection.');
-          }
+          debugPrint('❌ Error checking code uniqueness: $e');
           return InviteResult.error('Failed to check code: $e');
         }
+        
         attempts++;
       } while (!isUnique && attempts < 10);
 
       if (!isUnique) {
+        debugPrint('❌ Failed to generate unique code after $attempts attempts');
         return InviteResult.error('Failed to generate unique code');
       }
+
+      debugPrint('🎯 Generated unique code: $code');
 
       final now = DateTime.now();
       final expiresAt = now.add(_expiryDuration).millisecondsSinceEpoch;
@@ -138,25 +137,34 @@ class InviteService {
         'expiresAt': expiresAt,
       };
 
-      // Write to invites node
-      await _database
-          .child('$_invitesPath/$code')
-          .set(inviteData)
-          .timeout(const Duration(seconds: 10));
+      debugPrint('📝 Writing invite data to: $_invitesPath/$code');
 
-      // Track invite in user's sent invites
-      await _database
-          .child('$_userInvitesPath/${user.uid}/sent/$code')
-          .set({'createdAt': now.millisecondsSinceEpoch})
-          .timeout(const Duration(seconds: 10));
+      try {
+        await _database
+            .child('$_invitesPath/$code')
+            .set(inviteData)
+            .timeout(const Duration(seconds: 10));
+        debugPrint('✅ Invite written successfully');
+      } catch (e) {
+        debugPrint('❌ Error writing invite: $e');
+        return InviteResult.error('Failed to write invite: $e');
+      }
 
-      _log('✅ Invite created: $code');
+      try {
+        await _database
+            .child('$_userInvitesPath/${user.uid}/sent/$code')
+            .set({'createdAt': now.millisecondsSinceEpoch})
+            .timeout(const Duration(seconds: 10));
+        debugPrint('✅ Invite tracked in user_invites');
+      } catch (e) {
+        debugPrint('⚠️ Error tracking invite (non-critical): $e');
+      }
+
+      debugPrint('🎉 Invite created successfully: $code');
       return InviteResult.success(code);
     } catch (e, stackTrace) {
-      _log('❌ Create invite error: $e');
-      if (kDebugMode) {
-        _log('Stack trace: $stackTrace');
-      }
+      debugPrint('❌ Create Invite Error: $e');
+      debugPrint('Stack trace: $stackTrace');
       return InviteResult.error('Failed to create invite: $e');
     }
   }
@@ -243,6 +251,54 @@ class InviteService {
       return InviteResult.accepted(invite.creatorId);
     } catch (e) {
       return InviteResult.error('Failed to accept invite: $e');
+    }
+  }
+
+  /// Cleanup unused (pending) invites from this user
+  Future<void> _cleanupUserUnusedInvites(String userId) async {
+    try {
+      final snapshot = await _database
+          .child('$_userInvitesPath/$userId/sent')
+          .once();
+      
+      if (snapshot.snapshot.value == null) return;
+      
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+      final updates = <String, dynamic>{};
+      int cleanedCount = 0;
+      
+      for (final code in data.keys) {
+        final inviteSnapshot = await _database.child('$_invitesPath/$code').once();
+        
+        if (inviteSnapshot.snapshot.value != null) {
+          final inviteData = Map<String, dynamic>.from(
+            inviteSnapshot.snapshot.value as Map
+          );
+          
+          // Delete old pending invites (older than 1 day)
+          if (inviteData['status'] == 'pending' && 
+              now - (inviteData['createdAt'] as int) > 24 * 60 * 60 * 1000) {
+            updates['$_invitesPath/$code'] = null;
+            updates['$_userInvitesPath/$userId/sent/$code'] = null;
+            cleanedCount++;
+          }
+          
+          // Delete expired or accepted invites
+          if (inviteData['status'] == 'expired' || inviteData['status'] == 'accepted') {
+            updates['$_invitesPath/$code'] = null;
+            updates['$_userInvitesPath/$userId/sent/$code'] = null;
+            cleanedCount++;
+          }
+        }
+      }
+      
+      if (updates.isNotEmpty) {
+        await _database.update(updates);
+        debugPrint('🧹 Cleaned up $cleanedCount old invites');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Cleanup error (non-critical): $e');
     }
   }
 
@@ -386,12 +442,54 @@ class InviteService {
     });
   }
 
-  /// Debug logging - only in debug mode
-  void _log(String message) {
-    if (kDebugMode) {
-      // ignore: avoid_print
-      print(message);
+  /// Clean up old invites (call periodically, e.g., on app start)
+  Future<void> cleanupOldInvites() async {
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000); // 7 days
+      final thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000); // 30 days
+
+      final snapshot = await _database.child(_invitesPath).once();
+
+      if (snapshot.snapshot.value == null) return;
+
+      final updates = <String, dynamic>{};
+      final data = Map<String, dynamic>.from(snapshot.snapshot.value as Map);
+      int deletedCount = 0;
+
+      for (final entry in data.entries) {
+        final code = entry.key;
+        final inviteData = Map<String, dynamic>.from(entry.value as Map);
+
+        final status = inviteData['status'] as String;
+        final createdAt = inviteData['createdAt'] as int;
+        final expiresAt = inviteData['expiresAt'] as int;
+
+        // Delete if:
+        // - Expired for more than 7 days
+        // - Accepted for more than 30 days
+        bool shouldDelete = false;
+
+        if (status == 'expired' && expiresAt < sevenDaysAgo) {
+          shouldDelete = true;
+        } else if (status == 'accepted' && createdAt < thirtyDaysAgo) {
+          shouldDelete = true;
+        }
+
+        if (shouldDelete) {
+          updates['$_invitesPath/$code'] = null;
+          updates['$_userInvitesPath/${inviteData['creatorId']}/sent/$code'] = null;
+          deletedCount++;
+        }
+      }
+
+      if (updates.isNotEmpty) {
+        await _database.update(updates);
+        debugPrint('🧹 Cleaned up $deletedCount old invites');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Cleanup failed: $e');
+      // Silent fail - cleanup is not critical
     }
   }
 }
-

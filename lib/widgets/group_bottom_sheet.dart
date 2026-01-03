@@ -499,8 +499,8 @@ class _InviteCodeDisplaySheetState extends State<_InviteCodeDisplaySheet> {
     setState(() => _copied = true);
     
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Kode invite disalin ke clipboard'),
+      const SnackBar(
+        content: Text('Kode invite disalin ke clipboard'),
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.success,
       ),

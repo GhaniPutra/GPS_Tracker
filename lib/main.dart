@@ -14,6 +14,7 @@ import 'screens/startup_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:gps_tracker_app/firebase_options.dart';
 
+import 'services/invite_service.dart';
 import 'services/key_manager.dart';
 import 'services/bluetooth_manager.dart';
 
@@ -23,6 +24,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Cleanup old invites on app start
+  InviteService().cleanupOldInvites();
 
   // Fetch HMAC key from remote or secure storage and configure BluetoothManager
   try {

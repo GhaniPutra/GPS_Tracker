@@ -13,7 +13,6 @@ import '../widgets/group_bottom_sheet.dart';
 import '../widgets/profile_menu_dialog.dart';
 import '../widgets/map_type_bottom_sheet.dart';
 import '../utils/theme.dart';
-import '../services/location_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

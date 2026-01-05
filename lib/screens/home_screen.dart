@@ -276,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Connected users markers from ConnectionProvider
               Consumer<ConnectionProvider>(
                 builder: (context, connectionProvider, child) {
-                  final connectedUsers = connectionProvider.connectedUsers;
+                  final connectedUsers = connectionProvider.connectedUsers ?? [];
                   final markers = <Marker>[];
 
                   for (final user in connectedUsers) {
@@ -302,11 +302,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
 
           // ===== TOP STATUS BAR (Glassmorphism) =====
-          Positioned(
+          const Positioned(
             top: 0,
             left: 0,
             right: 0,
-            child: _buildTopStatusBar(),
+            child: SizedBox.shrink(),
           ),
 
           // ===== MAP CONTROLS (Right Side) =====
@@ -541,14 +541,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
     );
   }
-
-  // ===== TOP STATUS BAR =====
-
-  Widget _buildTopStatusBar() {
-    return const SizedBox.shrink();
-  }
-
-
 
   // ===== MAP CONTROLS =====
 

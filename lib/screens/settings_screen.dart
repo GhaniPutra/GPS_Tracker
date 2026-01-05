@@ -21,6 +21,8 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
   bool _locationTracking = true;
   bool _autoConnect = false;
 
+  final TextEditingController _nameController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +37,69 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
   @override
   void dispose() {
     _fadeController.dispose();
+    _nameController.dispose();
     super.dispose();
+  }
+
+  void _showEditProfileDialog(BuildContext context, User? user) {
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mode tamu tidak dapat mengedit profil')),
+      );
+      return;
+    }
+    
+    _nameController.text = user.displayName ?? '';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Profil'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nama Lengkap',
+                hintText: 'Masukkan nama lengkap Anda',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final newName = _nameController.text.trim();
+                if (newName.isNotEmpty) {
+                  await user.updateDisplayName(newName);
+                  await user.reload();
+                  // AuthProvider will automatically update via authStateChanges listener
+                }
+                if (mounted) {
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Profil berhasil diperbarui')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal memperbarui profil: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -130,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStat
                           icon: Icons.person_outline,
                           title: 'Edit Profil',
                           subtitle: 'Ubah foto dan nama Anda',
-                          onTap: () {},
+                          onTap: () => _showEditProfileDialog(context, user),
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         _buildActionCard(

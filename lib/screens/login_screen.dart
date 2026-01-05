@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:provider/provider.dart';
 import 'package:gps_tracker_app/providers/auth_provider.dart';
 import '../services/auth_services.dart';
@@ -19,8 +20,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   bool _isLoading = false;
   bool _passwordVisible = false;
+  bool _isLogin = true;
 
   @override
   void initState() {
@@ -48,6 +51,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
@@ -91,6 +95,43 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     }
   }
 
+  Future<void> _handleRegister() async {
+    if (_emailController.text.trim().isEmpty || 
+        _passwordController.text.trim().isEmpty || 
+        _nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Mohon lengkapi nama, email, dan kata sandi'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppBorderRadius.md)),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      // Create user directly via Firebase Auth
+      final credential = await firebase_auth.FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      
+      // Update Display Name immediately so user has a name in the app
+      await credential.user?.updateDisplayName(_nameController.text.trim());
+      await credential.user?.reload();
+
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      if (mounted) _showErrorSnackbar(e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _handleGoogleLogin() async {
     setState(() => _isLoading = true);
     try {
@@ -109,6 +150,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           ),
         );
       }
+      if (mounted) _showErrorSnackbar(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -135,9 +177,21 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           ),
         );
       }
+      if (mounted) _showErrorSnackbar(e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppBorderRadius.md)),
+      ),
+    );
   }
 
   @override
@@ -198,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         ),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
-                          'Masuk untuk melanjutkan',
+                          _isLogin ? 'Masuk untuk melanjutkan' : 'Buat akun baru',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
                           ),
@@ -258,6 +312,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           ),
           child: Column(
             children: [
+              // Name field (Only for Register)
+              if (!_isLogin) ...[
+                _buildAnimatedTextField(
+                  controller: _nameController,
+                  label: 'Nama Lengkap',
+                  icon: Icons.person_outline,
+                  keyboardType: TextInputType.name,
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+
               // Email field
               _buildAnimatedTextField(
                 controller: _emailController,
@@ -278,19 +343,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               const SizedBox(height: AppSpacing.sm),
               
               // Forgot password
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'Lupa kata sandi?',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 13,
+              if (_isLogin)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      'Lupa kata sandi?',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
-              ),
               
               const SizedBox(height: AppSpacing.md),
               
@@ -299,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
+                  onPressed: _isLoading ? null : (_isLogin ? _handleLogin : _handleRegister),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -555,17 +621,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          'Belum punya akun? ',
+          _isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
           style: TextStyle(
             color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
             fontSize: 14,
           ),
         ),
         GestureDetector(
-          onTap: () {},
-          child: const Text(
-            'Daftar',
-            style: TextStyle(
+          onTap: () {
+            setState(() {
+              _isLogin = !_isLogin;
+              _fadeController.forward(from: 0.0); // Re-animate for nice effect
+            });
+          },
+          child: Text(
+            _isLogin ? 'Daftar' : 'Masuk',
+            style: const TextStyle(
               color: AppColors.primary,
               fontSize: 14,
               fontWeight: FontWeight.w600,

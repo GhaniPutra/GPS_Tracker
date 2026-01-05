@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:gps_tracker_app/providers/theme_provider.dart';
 import 'package:gps_tracker_app/providers/bluetooth_provider.dart';
 import 'package:gps_tracker_app/providers/auth_provider.dart';
+import 'package:gps_tracker_app/providers/hardware_provider.dart';
 import 'package:gps_tracker_app/providers/connection_provider.dart';
 import 'package:gps_tracker_app/utils/theme.dart';
 import 'package:gps_tracker_app/screens/quest_screen.dart';
@@ -53,6 +54,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
         ChangeNotifierProvider(create: (context) => BluetoothProvider()),
+        ChangeNotifierProvider(create: (context) => HardwareProvider()),
         ChangeNotifierProvider.value(value: connectionProvider),
         ChangeNotifierProvider.value(value: authProvider),
       ],

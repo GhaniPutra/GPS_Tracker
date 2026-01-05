@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gps_tracker_app/providers/bluetooth_provider.dart';
+import 'package:gps_tracker_app/providers/hardware_provider.dart';
 import 'package:gps_tracker_app/screens/bluetooth_scan_screen.dart';
 import 'package:provider/provider.dart';
 import '../utils/theme.dart';
@@ -164,16 +165,26 @@ class _DeviceBottomSheetState extends State<DeviceBottomSheet> with TickerProvid
   }
 
   Widget _buildContent(ThemeData theme) {
-    return Consumer<BluetoothProvider>(
-      builder: (context, bt, child) {
+    return Consumer2<BluetoothProvider, HardwareProvider>(
+      builder: (context, bt, hardware, child) {
         final connected = bt.connectedDevices;
         final known = bt.knownDevices;
+        final isHardwareConnected = hardware.isConnected;
+        final hardwarePosition = hardware.hardwarePosition;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Hardware section
+              if (isHardwareConnected) ...[
+                _buildSectionHeader(theme, 'Hardware'),
+                const SizedBox(height: AppSpacing.sm),
+                _buildHardwareDeviceCard(theme, hardwarePosition),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+
               // Connected devices section
               if (connected.isNotEmpty) ...[
                 _buildSectionHeader(theme, 'Terhubung (${connected.length})'),
@@ -181,11 +192,11 @@ class _DeviceBottomSheetState extends State<DeviceBottomSheet> with TickerProvid
                 ...connected.map((conn) => _buildConnectedDeviceCard(conn, theme)),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              
+
               // Stored devices section
               _buildSectionHeader(theme, 'Tersimpan (${known.length})'),
               const SizedBox(height: AppSpacing.sm),
-              
+
               if (known.isEmpty)
                 _buildEmptyState(theme)
               else
@@ -297,6 +308,102 @@ class _DeviceBottomSheetState extends State<DeviceBottomSheet> with TickerProvid
           final provider = Provider.of<BluetoothProvider>(context, listen: false);
           provider.selectDevice(device);
           Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  Widget _buildHardwareDeviceCard(ThemeData theme, dynamic position) {
+    final isDark = theme.brightness == Brightness.dark;
+    final hasPos = position != null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: (isDark ? AppColors.darkCard : AppColors.lightCard).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(AppBorderRadius.md),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: hasPos ? AppColors.success.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(AppBorderRadius.md),
+          ),
+          child: Icon(
+            Icons.hardware,
+            color: hasPos ? AppColors.success : AppColors.warning,
+            size: 24,
+          ),
+        ),
+        title: const Text(
+          'Hardware Tracker',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 2),
+            Text(
+              'ESP32 GPS Tracker',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: 11,
+              ),
+            ),
+            if (hasPos) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 12, color: AppColors.success),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Lokasi aktif',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.success,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: 10,
+                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                ),
+              ),
+            ],
+          ],
+        ),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            final provider = Provider.of<HardwareProvider>(context, listen: false);
+            if (value == 'disconnect') {
+              provider.disconnect();
+              _showSnackBar('Hardware terputus');
+            }
+          },
+          itemBuilder: (ctx) => [
+            const PopupMenuItem(value: 'disconnect', child: Text('Putuskan')),
+          ],
+          icon: Icon(Icons.more_vert, color: theme.iconTheme.color?.withOpacity(0.5)),
+        ),
+        onTap: () {
+          // Focus to hardware position on map
+          Navigator.pop(context);
+          // You can add logic here to center map on hardware position
         },
       ),
     );
